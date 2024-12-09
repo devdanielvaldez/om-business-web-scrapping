@@ -6,7 +6,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import chromedriver_autoinstaller
 import undetected_chromedriver as uc
+from fastapi.middleware.cors import CORSMiddleware
 import time
+import firebase_admin
+from firebase_admin import credentials, storage
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -20,11 +23,41 @@ import os
 import openai
 from fastapi.responses import JSONResponse
 import base64
+import google.generativeai as genai
+from judini import CodeGPTPlus
+codegpt = CodeGPTPlus(api_key="sk-548d09b3-bb9b-4756-a320-836a22a390bb", org_id="a01d3b54-4e20-4eea-be37-54e7e9e70363")
+
+AGENT_ID = "abc4b015-0019-4b38-ab13-64d3636243f6"
 
 openai.api_key = "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"
 
+genai.configure(api_key="AIzaSyDrNY_hexwjMFYQFcUfdm7D8tq7suET7zM")
+
+cred = credentials.Certificate("om-business-41594-firebase-adminsdk-xrqd5-0a3af07260.json")
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'triptap-dev.appspot.com'  # Reemplaza con tu bucket de Firebase Storage
+})
+
+# sk-548d09b3-bb9b-4756-a320-836a22a390bb
+
+generation_config = {
+  "temperature": 1,
+  "top_p": 0.95,
+  "top_k": 40,
+  "max_output_tokens": 8192,
+  "response_mime_type": "text/plain",
+}
+
+model = genai.GenerativeModel(
+  model_name="gemini-1.5-flash",
+  generation_config=generation_config,
+)
+
+# AIzaSyDrNY_hexwjMFYQFcUfdm7D8tq7suET7zM
+
 
 app = FastAPI()
+
 
 # Modelo de datos para recibir los parámetros
 class QuoteRequest(BaseModel):
@@ -37,6 +70,32 @@ LOGIN_URL = "https://identity.hapag-lloyd.com/hlagwebprod.onmicrosoft.com/b2c_1a
 NEW_QUOTE_URL = "https://www.hapag-lloyd.com/solutions/new-quote/#/simple?language=en"
 USERNAME = "omontero@ombusinesslogistic.com"  # Cambia esto por tu usuario
 PASSWORD = "Dios1986--"  # Cambia esto por tu contraseña
+
+def upload_image_to_firebase(image_path: str) -> str:
+    """
+    Sube una imagen a Firebase Storage y devuelve su URL pública.
+    """
+    try:
+        # Referencia al bucket de Firebase
+        bucket = storage.bucket()
+        filename = f"{uuid.uuid4()}.png"  # Nombre único para el archivo
+
+        # Crea un blob (archivo) en el bucket
+        blob = bucket.blob(filename)
+
+        # Sube la imagen
+        blob.upload_from_filename(image_path)
+        print(f"Imagen subida: {filename}")
+
+        # Hacer pública la imagen (opcional)
+        blob.make_public()
+        print(f"URL pública: {blob.public_url}")
+
+        # Devuelve la URL pública
+        return blob.public_url
+
+    except Exception as e:
+        raise Exception(f"Error al subir la imagen a Firebase: {e}")
 
 def get_driver():
     chromedriver_autoinstaller.install()
@@ -118,19 +177,12 @@ def submit_quote(quote_request: QuoteRequest):
         print("Formulario enviado.")
 
         # Esperar y obtener el precio
-        offer_card_actions_div = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "offer-card__actions")))
-        text_caption_div = offer_card_actions_div.find_element(By.CLASS_NAME, "text-caption-1")
-        price_span = text_caption_div.find_element(By.CLASS_NAME, "text-h1.h-mr-xs")
-        currency_span = text_caption_div.find_element(By.CLASS_NAME, "h-mr-xs")
+        carousel_content_div = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "carousel__content")))
+        carousel_html = carousel_content_div.get_attribute("innerHTML")
 
-        price = price_span.text
-        currency = currency_span.text
+        print("Contenido capturado del carousel__content:")
 
-        print(f"Precio: {price}")
-        print(f"Moneda: {currency}")
-
-        # Retornar el resultado
-        return {"price": price, "currency": currency}
+        return {"data": carousel_html}
 
     except Exception as e:
         print(f"Error: {e}")
@@ -149,6 +201,28 @@ async def submit_quote_endpoint(quote_request: QuoteRequest):
 
 # Directorio donde se guardarán las capturas de pantalla
 SCREENSHOTS_DIR = "screenshots"
+
+proxies = [
+    "http://171.237.120.129:4003",
+    "http://200.49.99.78:9991",
+    "http://36.92.132.116:1010",
+    "http://101.51.54.236:8080",
+    "http://124.106.173.56:8082",
+    "http://185.166.39.29:3128",
+    "http://207.154.229.255:10023",
+    "http://157.20.36.149:1111",
+    "http://42.116.214.29:8080",
+    "http://185.204.0.94:8080",
+    "http://59.98.4.70:8080",
+    "http://167.249.29.218:9999",
+    "http://58.120.36.163:3128",
+    "http://119.95.235.6:8082",
+    "http://114.134.95.222:8080",
+    "http://122.54.105.109:8082",
+    "http://189.164.188.186:8080",
+    "http://181.204.83.115:41890",
+    "http://49.146.178.162:8080"
+]
 
 # Crear el directorio si no existe
 if not os.path.exists(SCREENSHOTS_DIR):
@@ -169,6 +243,9 @@ def generate_random_filename(extension="png"):
 def capture_tracking_page(tracking_number: str):
     """Captura la página de tracking y devuelve la ruta de la imagen."""
     URL = f"https://www.searates.com/container/tracking/?number={tracking_number}"
+    chrome_options = Options()
+    proxy = random.choice(proxies)  # Elige un proxy aleatorio
+    chrome_options.add_argument(f'--proxy-server={proxy}')
 
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
     screenshot_filename = generate_random_filename()
@@ -213,31 +290,31 @@ def analyze_image_with_openai(image_path: str):
     """Analiza una imagen con OpenAI y devuelve la descripción del contenido."""
     try:
         # with open(image_path, "rb") as image_file:
-        base64_image = encode_image(image_path)
+        # base64_image = encode_image(image_path)
 
         # Enviar la imagen a OpenAI para reconocimiento y descripción
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                "role": "user",
-                "content": [
-                    {
-                    "type": "text",
-                    "text": "Dame la informacion del tracking, presentalo en formato para enviarselo al cliente como un mensaje. Solo agrega la informacion del tracking y que pueda enviarlo directamente al cliente sin tener que limpiar nada. Nunca agregues nada como esto: Aquí tienes la información de tracking que puedes enviar al cliente.",
-                    },
-                    {
-                    "type": "image_url",
-                    "image_url": {
-                        "url":  f"data:image/png;base64,{base64_image}"
-                    },
-                    },
-                ],
-                }
-            ],
-        )
+        # response = openai.ChatCompletion.create(
+        #     model="gpt-4o-mini",
+        #     messages=[
+        #         {
+        #         "role": "user",
+        #         "content": [
+        #             {
+        #             "type": "text",
+        #             "text": "Dame la informacion del tracking, presentalo en formato para enviarselo al cliente como un mensaje. Solo agrega la informacion del tracking y que pueda enviarlo directamente al cliente sin tener que limpiar nada. Nunca agregues nada como esto: Aquí tienes la información de tracking que puedes enviar al cliente. Sino se obtiene la ruta debes decirle al usuario que u tracking no se encuentra disponible en este momento.",
+        #             },
+        #             {
+        #             "type": "image_url",
+        #             "image_url": {
+        #                 "url":  f"data:image/png;base64,{base64_image}"
+        #             },
+        #             },
+        #         ],
+        #         }
+        #     ],
+        # )
 
-        return response['choices'][0]['message']['content']
+        return image_path
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {e}")
@@ -248,12 +325,10 @@ async def track_container(tracking_number: str):
     try:
         # Capturar la página de tracking y obtener la ruta de la imagen
         image_path = capture_tracking_page(tracking_number)
-
-        # Analizar la imagen con OpenAI
-        tracking_description = analyze_image_with_openai(image_path)
+        url = upload_image_to_firebase(image_path)
 
         # Retornar la descripción obtenida
-        return JSONResponse(content={"tracking_number": tracking_number, "description": tracking_description})
+        return JSONResponse(content={"tracking_number": tracking_number, "url": url })
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
