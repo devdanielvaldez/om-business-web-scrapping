@@ -107,7 +107,7 @@ def submit_quote(quote_request: QuoteRequest):
 
     try:
         driver.get(LOGIN_URL)
-        wait = WebDriverWait(driver, 60)
+        wait = WebDriverWait(driver, 120)
 
         # Aceptar el modal de políticas de privacidad
         try:
