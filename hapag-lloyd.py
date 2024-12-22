@@ -9,8 +9,8 @@ import time
 LOGIN_URL = "https://identity.hapag-lloyd.com/hlagwebprod.onmicrosoft.com/b2c_1a_signup_signin/oauth2/v2.0/authorize?client_id=64d7a44b-1c5b-4b52-9ff9-254f7acd8fc0&scope=openid%20profile%20offline_access&redirect_uri=https%3A%2F%2Fwww.hapag-lloyd.com%2Fsolutions%2Fauth"
 NEW_QUOTE_URL = "https://www.hapag-lloyd.com/solutions/new-quote/#/simple?language=en"
 
-USERNAME = "omontero@ombusinesslogistic.com"  # Cambia esto por tu usuario
-PASSWORD = "Dios1986--"  # Cambia esto por tu contraseña
+USERNAME = "ingdanielvadez@gmail.com"  # Cambia esto por tu usuario
+PASSWORD = "D@niel1901"  # Cambia esto por tu contraseña
 
 def main():
     chromedriver_autoinstaller.install()
@@ -47,16 +47,8 @@ def main():
         driver.get(NEW_QUOTE_URL)
         print(f"Redirigido a {NEW_QUOTE_URL}")
 
-        # Espera 5 segundos antes de buscar el botón
         time.sleep(5)
 
-        # Hacer clic en el botón con las clases especificadas
-        button_classes = "q-btn q-btn-item non-selectable no-outline q-btn--flat q-btn--round q-btn--actionable q-focusable q-hoverable q-btn--no-uppercase q-btn--hal q-btn--md q-btn--icon-only q-btn--light q-dialog__x q-dialog__x"
-        close_button = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "q-dialog__x")))
-        close_button.click()
-        print("Botón cerrado.")
-
-        # Espera hasta que el campo "Start Location" sea visible
         start_location_input = wait.until(EC.presence_of_element_located((By.XPATH, '//input[@aria-label="Start Location"]')))
 
         # Escribir DOCAU en el campo "Start Location"
@@ -110,31 +102,37 @@ def main():
         submit_button.click()
         print("Formulario enviado.")
 
-        offer_card_actions_div = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "offer-card__actions")))
+        time.sleep(5)
 
-        # Dentro de ese div, busca el div con la clase "text-caption-1"
-        text_caption_div = offer_card_actions_div.find_element(By.CLASS_NAME, "text-caption-1")
+        # Buscar y hacer clic en el primer span que contiene "Select"
+        select_span = wait.until(EC.presence_of_element_located((By.XPATH, '//span[text()="Select"]')))
+        select_span.click()
+        print("Primer 'Select' seleccionado.")
 
-        # Dentro de ese div, busca el span con las clases "text-h1 h-mr-xs" para el precio
-        price_span = text_caption_div.find_element(By.CLASS_NAME, "text-h1.h-mr-xs")
+        # Buscar y hacer clic en el span que contiene "Next" en la primera página
+        next_span = wait.until(EC.presence_of_element_located((By.XPATH, '//span[text()="Next"]')))
+        next_span.click()
+        print("Primer 'Next' seleccionado.")
 
-        # Busca el otro span con la clase "h-mr-xs" para la moneda
-        currency_span = text_caption_div.find_element(By.CLASS_NAME, "h-mr-xs")
+        time.sleep(10)
 
-        # Obtener el texto del precio y la moneda
-        price = price_span.text
-        currency = currency_span.text
+        # Cambiará de página, buscar nuevamente el span "Next" y hacer clic
+        next_span_second_page = wait.until(EC.presence_of_element_located((By.XPATH, '//span[text()="Next"]')))
+        next_span_second_page.click()
+        print("Segundo 'Next' seleccionado.")
 
-        # Imprimir el precio y la moneda
-        print(f"Precio: {price}")
-        print(f"Moneda: {currency}")
+        time.sleep(10)
 
-        # Esperar a la redirección a la nueva URL
-        # WebDriverWait(driver, 60).until(EC.url_changes(NEW_QUOTE_URL))
+        # Buscar un h2 con las clases "text-h2 h-ma-none" y que contenga "USD"
+        usd_h2 = wait.until(EC.presence_of_element_located(
+            (By.XPATH, '//h2[contains(@class, "text-h2 h-ma-none") and contains(text(), "USD")]')
+        ))
 
-        # # Redirige a la URL final
-        # print(f"Redirigido a {FINAL_URL}")
-        # driver.get(FINAL_URL)
+        # Extraer el texto del h2
+        usd_text = usd_h2.text
+        print(f"Texto encontrado en h2: {usd_text}")
+        current_url = driver.current_url
+        print(f"URL: {current_url}")
 
         # # Esperar 30 segundos después de la redirección
         time.sleep(180)

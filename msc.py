@@ -23,8 +23,8 @@ chromedriver_autoinstaller.install()
 driver = uc.Chrome(options=options)
 
 # URL de la página principal
-MAIN_URL = "https://www.msc.com/en"
-LOGIN_URL = "https://mscciam.b2clogin.com/mscciam.onmicrosoft.com/oauth2/v2.0/authorize?p=b2c_1a_signupsignin&client_id=a67f5969-b5a5-4de0-ae50-f611dfa91fee&redirect_uri=https%3A%2F%2Fidentityserver.msc.com%2Fsignin-aad-b2c&response_type=id_token&scope=openid%20profile&response_mode=form_post&nonce=638690298275218679.NzNkMDcyZGYtZjZkMi00MTRmLThiYzktMjliODMyMWNmYTMyMWNiMjkwZDYtZGZmYy00MGVlLTgwNjktMDkwZTI0MTk1NGI2&ui_locales=en&state=CfDJ8JCi0WqCtPVEprDHFnXVEfN8lfQcXYs5Ekz7qq8B5MUIHYzkdCFhDniyAeYV-WqdBDGWWteAL-pDepyTFXkwrpPSEdsqctz5DCRHHcelNj9CeqPtaYWhKu6KUKpPQ4t_vLQAe8thikIKQAWryAj8rVwk1LUNmh0ZOzcwEjC_9joS&x-client-SKU=ID_NETSTANDARD2_0&x-client-ver=6.10.0.0"
+MAIN_URL = "https://www.maersk.com/"
+LOGIN_URL = "https://accounts.maersk.com/ocean-maeu/auth/login?nonce=BJ6Bxp6OX2F1Td0EYX4w&scope=openid%20profile%20email&client_id=portaluser&redirect_uri=https%3A%2F%2Fwww.maersk.com%2Fportaluser%2Foidc%2Fcallback&response_type=code&code_challenge=k17BpbDwSjFHGU8igYS9Jklr6kHbbAxE-Oiq8AcRsag"
 
 USERNAME = "omontero@ombusinesslogistic.com"  # Cambia esto por tu usuario
 PASSWORD = "Candhy1986--"  # Cambia esto por tu contraseña

@@ -20,44 +20,15 @@ from io import BytesIO
 import uuid
 import random
 import os
-import openai
 from fastapi.responses import JSONResponse
 import base64
-import google.generativeai as genai
-from judini import CodeGPTPlus
-codegpt = CodeGPTPlus(api_key="sk-548d09b3-bb9b-4756-a320-836a22a390bb", org_id="a01d3b54-4e20-4eea-be37-54e7e9e70363")
-
-AGENT_ID = "abc4b015-0019-4b38-ab13-64d3636243f6"
-
-openai.api_key = "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"
-
-genai.configure(api_key="AIzaSyDrNY_hexwjMFYQFcUfdm7D8tq7suET7zM")
 
 cred = credentials.Certificate("om-business-41594-firebase-adminsdk-xrqd5-0a3af07260.json")
 firebase_admin.initialize_app(cred, {
-    'storageBucket': 'triptap-dev.appspot.com'  # Reemplaza con tu bucket de Firebase Storage
+    'storageBucket': 'triptap-dev.appspot.com'
 })
 
-# sk-548d09b3-bb9b-4756-a320-836a22a390bb
-
-generation_config = {
-  "temperature": 1,
-  "top_p": 0.95,
-  "top_k": 40,
-  "max_output_tokens": 8192,
-  "response_mime_type": "text/plain",
-}
-
-model = genai.GenerativeModel(
-  model_name="gemini-1.5-flash",
-  generation_config=generation_config,
-)
-
-# AIzaSyDrNY_hexwjMFYQFcUfdm7D8tq7suET7zM
-
-
 app = FastAPI()
-
 
 # Modelo de datos para recibir los parámetros
 class QuoteRequest(BaseModel):
@@ -65,11 +36,12 @@ class QuoteRequest(BaseModel):
     end_location: str
     container_type: str
     container_quantity: int
+    quote_id: str
 
 LOGIN_URL = "https://identity.hapag-lloyd.com/hlagwebprod.onmicrosoft.com/b2c_1a_signup_signin/oauth2/v2.0/authorize?client_id=64d7a44b-1c5b-4b52-9ff9-254f7acd8fc0&scope=openid%20profile%20offline_access&redirect_uri=https%3A%2F%2Fwww.hapag-lloyd.com%2Fsolutions%2Fauth"
 NEW_QUOTE_URL = "https://www.hapag-lloyd.com/solutions/new-quote/#/simple?language=en"
-USERNAME = "omontero@ombusinesslogistic.com"  # Cambia esto por tu usuario
-PASSWORD = "Dios1986--"  # Cambia esto por tu contraseña
+USERNAME = "ingdanielvadez@gmail.com"
+PASSWORD = "D@niel1901"
 
 def upload_image_to_firebase(image_path: str) -> str:
     """
@@ -125,19 +97,11 @@ def submit_quote(quote_request: QuoteRequest):
         password_input.send_keys(Keys.RETURN)
 
         # Esperar a que el login sea procesado
-        time.sleep(10)
+        time.sleep(7)
 
         # Redirigir a la URL de nuevo presupuesto
         driver.get(NEW_QUOTE_URL)
-        time.sleep(5)
-
-        # Cerrar el modal si aparece
-        try:
-            close_button = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "q-dialog__x")))
-            close_button.click()
-            print("Botón cerrado.")
-        except Exception as e:
-            print("No se encontró el botón de cerrar modal.")
+        time.sleep(3)
 
         # Rellenar los campos con los datos del request
         start_location_input = wait.until(EC.presence_of_element_located((By.XPATH, '//input[@aria-label="Start Location"]')))
@@ -176,13 +140,39 @@ def submit_quote(quote_request: QuoteRequest):
         submit_button.click()
         print("Formulario enviado.")
 
-        # Esperar y obtener el precio
-        carousel_content_div = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "carousel__content")))
-        carousel_html = carousel_content_div.get_attribute("innerHTML")
+        time.sleep(3)
 
-        print("Contenido capturado del carousel__content:")
+        # Buscar y hacer clic en el primer span que contiene "Select"
+        select_span = wait.until(EC.presence_of_element_located((By.XPATH, '//span[text()="Select"]')))
+        select_span.click()
+        print("Primer 'Select' seleccionado.")
 
-        return {"data": carousel_html}
+        # Buscar y hacer clic en el span que contiene "Next" en la primera página
+        next_span = wait.until(EC.presence_of_element_located((By.XPATH, '//span[text()="Next"]')))
+        next_span.click()
+        print("Primer 'Next' seleccionado.")
+
+        time.sleep(3)
+
+        # Cambiará de página, buscar nuevamente el span "Next" y hacer clic
+        next_span_second_page = wait.until(EC.presence_of_element_located((By.XPATH, '//span[text()="Next"]')))
+        next_span_second_page.click()
+        print("Segundo 'Next' seleccionado.")
+
+        time.sleep(3)
+
+        # Buscar un h2 con las clases "text-h2 h-ma-none" y que contenga "USD"
+        usd_h2 = wait.until(EC.presence_of_element_located(
+            (By.XPATH, '//h2[contains(@class, "text-h2 h-ma-none") and contains(text(), "USD")]')
+        ))
+
+        # Extraer el texto del h2
+        usd_text = usd_h2.text
+        print(f"Texto encontrado en h2: {usd_text}")
+        current_url = driver.current_url
+        print(f"URL: {current_url}")
+
+        return {"data": { "price": usd_text, "id": quote_request.quote_id, "url": current_url, "company": "HP" }}
 
     except Exception as e:
         print(f"Error: {e}")
@@ -289,31 +279,6 @@ def capture_tracking_page(tracking_number: str):
 def analyze_image_with_openai(image_path: str):
     """Analiza una imagen con OpenAI y devuelve la descripción del contenido."""
     try:
-        # with open(image_path, "rb") as image_file:
-        # base64_image = encode_image(image_path)
-
-        # Enviar la imagen a OpenAI para reconocimiento y descripción
-        # response = openai.ChatCompletion.create(
-        #     model="gpt-4o-mini",
-        #     messages=[
-        #         {
-        #         "role": "user",
-        #         "content": [
-        #             {
-        #             "type": "text",
-        #             "text": "Dame la informacion del tracking, presentalo en formato para enviarselo al cliente como un mensaje. Solo agrega la informacion del tracking y que pueda enviarlo directamente al cliente sin tener que limpiar nada. Nunca agregues nada como esto: Aquí tienes la información de tracking que puedes enviar al cliente. Sino se obtiene la ruta debes decirle al usuario que u tracking no se encuentra disponible en este momento.",
-        #             },
-        #             {
-        #             "type": "image_url",
-        #             "image_url": {
-        #                 "url":  f"data:image/png;base64,{base64_image}"
-        #             },
-        #             },
-        #         ],
-        #         }
-        #     ],
-        # )
-
         return image_path
 
     except Exception as e:
