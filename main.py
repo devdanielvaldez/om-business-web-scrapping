@@ -23,6 +23,12 @@ import os
 from fastapi.responses import JSONResponse
 import base64
 
+from sqlalchemy import create_engine, Column, Integer, String, Float
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+import time
+import motor.motor_asyncio
+
 cred = credentials.Certificate("om-business-41594-firebase-adminsdk-xrqd5-0a3af07260.json")
 firebase_admin.initialize_app(cred, {
     'storageBucket': 'triptap-dev.appspot.com'
@@ -36,12 +42,34 @@ class QuoteRequest(BaseModel):
     end_location: str
     container_type: str
     container_quantity: int
-    quote_id: str
 
 LOGIN_URL = "https://identity.hapag-lloyd.com/hlagwebprod.onmicrosoft.com/b2c_1a_signup_signin/oauth2/v2.0/authorize?client_id=64d7a44b-1c5b-4b52-9ff9-254f7acd8fc0&scope=openid%20profile%20offline_access&redirect_uri=https%3A%2F%2Fwww.hapag-lloyd.com%2Fsolutions%2Fauth"
 NEW_QUOTE_URL = "https://www.hapag-lloyd.com/solutions/new-quote/#/simple?language=en"
 USERNAME = "ingdanielvadez@gmail.com"
 PASSWORD = "D@niel1901"
+
+MONGO_URL = "mongodb+srv://admin:Admin123@database-doc-manager.asgo7.mongodb.net/?retryWrites=true&w=majority&appName=database-doc-manager/ombusiness"  # Asegúrate de cambiar a la URL de tu MongoDB
+DATABASE_NAME = "quotes_db"
+client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
+db = client[DATABASE_NAME]
+quotes_collection = db["quotes"]
+
+def save_quote_to_db(price: str, company: str, url: str, uuid: str):
+    try:
+        uuid_str = str(uuid)
+        # Crear una nueva cotización
+        new_quote = {
+            "price": price,
+            "company": company,
+            "url": url,
+            "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "uuid": uuid_str
+        }
+        # Insertar la cotización en MongoDB
+        result = quotes_collection.insert_one(new_quote)
+        print(f"Quote saved to DB with ID: {result}")
+    except Exception as e:
+        print(f"Error saving quote to DB: {e}")
 
 def upload_image_to_firebase(image_path: str) -> str:
     """
@@ -152,14 +180,14 @@ def submit_quote(quote_request: QuoteRequest):
         next_span.click()
         print("Primer 'Next' seleccionado.")
 
-        time.sleep(3)
+        time.sleep(2)
 
         # Cambiará de página, buscar nuevamente el span "Next" y hacer clic
         next_span_second_page = wait.until(EC.presence_of_element_located((By.XPATH, '//span[text()="Next"]')))
         next_span_second_page.click()
         print("Segundo 'Next' seleccionado.")
 
-        time.sleep(3)
+        time.sleep(2)
 
         # Buscar un h2 con las clases "text-h2 h-ma-none" y que contenga "USD"
         usd_h2 = wait.until(EC.presence_of_element_located(
@@ -172,7 +200,11 @@ def submit_quote(quote_request: QuoteRequest):
         current_url = driver.current_url
         print(f"URL: {current_url}")
 
-        return {"data": { "price": usd_text, "id": quote_request.quote_id, "url": current_url, "company": "HP" }}
+        uuid_quote = uuid.uuid4()
+
+        save_quote_to_db(usd_text, "HP", current_url, uuid_quote)
+
+        return {"data": { "price": usd_text, "id": uuid_quote, "url": current_url, "company": "HP" }}
 
     except Exception as e:
         print(f"Error: {e}")
