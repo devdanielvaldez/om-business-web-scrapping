@@ -125,11 +125,11 @@ def submit_quote(quote_request: QuoteRequest):
         password_input.send_keys(Keys.RETURN)
 
         # Esperar a que el login sea procesado
-        time.sleep(7)
+        time.sleep(5)
 
         # Redirigir a la URL de nuevo presupuesto
         driver.get(NEW_QUOTE_URL)
-        time.sleep(3)
+        time.sleep(2)
 
         # Rellenar los campos con los datos del request
         start_location_input = wait.until(EC.presence_of_element_located((By.XPATH, '//input[@aria-label="Start Location"]')))
