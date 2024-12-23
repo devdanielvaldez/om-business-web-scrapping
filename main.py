@@ -42,19 +42,22 @@ class QuoteRequest(BaseModel):
     end_location: str
     container_type: str
     container_quantity: int
+    customer: str
+    phone: str
+
 
 LOGIN_URL = "https://identity.hapag-lloyd.com/hlagwebprod.onmicrosoft.com/b2c_1a_signup_signin/oauth2/v2.0/authorize?client_id=64d7a44b-1c5b-4b52-9ff9-254f7acd8fc0&scope=openid%20profile%20offline_access&redirect_uri=https%3A%2F%2Fwww.hapag-lloyd.com%2Fsolutions%2Fauth"
 NEW_QUOTE_URL = "https://www.hapag-lloyd.com/solutions/new-quote/#/simple?language=en"
 USERNAME = "ingdanielvadez@gmail.com"
 PASSWORD = "D@niel1901"
 
-MONGO_URL = "mongodb+srv://admin:Admin123@database-doc-manager.asgo7.mongodb.net/?retryWrites=true&w=majority&appName=database-doc-manager/ombusiness"  # Asegúrate de cambiar a la URL de tu MongoDB
-DATABASE_NAME = "quotes_db"
+MONGO_URL = "mongodb+srv://admin:Admin123@database-doc-manager.asgo7.mongodb.net/?retryWrites=true&w=majority&appName=database-doc-manager"  # Asegúrate de cambiar a la URL de tu MongoDB
+DATABASE_NAME = "Customers"
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
 db = client[DATABASE_NAME]
 quotes_collection = db["quotes"]
 
-def save_quote_to_db(price: str, company: str, url: str, uuid: str):
+def save_quote_to_db(price: str, company: str, url: str, uuid: str, customer: str, phone: str):
     try:
         uuid_str = str(uuid)
         # Crear una nueva cotización
@@ -63,7 +66,9 @@ def save_quote_to_db(price: str, company: str, url: str, uuid: str):
             "company": company,
             "url": url,
             "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "uuid": uuid_str
+            "uuid": uuid_str,
+            "customer": customer,
+            "phone": phone
         }
         # Insertar la cotización en MongoDB
         result = quotes_collection.insert_one(new_quote)
@@ -116,6 +121,14 @@ def submit_quote(quote_request: QuoteRequest):
             print("Políticas de privacidad aceptadas.")
         except Exception as e:
             print("No se encontró el modal de políticas de privacidad o ya fue aceptado.")
+            driver.get(LOGIN_URL)
+            wait = WebDriverWait(driver, 120)
+            try:
+                accept_button = wait.until(EC.element_to_be_clickable((By.ID, "accept-recommended-btn-handler")))
+                accept_button.click()
+                print("Políticas de privacidad aceptadas.")
+            except Exception as e:
+                print("No se encontró el modal de políticas de privacidad o ya fue aceptado.")
 
         # Ingresar las credenciales
         username_input = wait.until(EC.element_to_be_clickable((By.ID, "signInName")))
@@ -202,7 +215,7 @@ def submit_quote(quote_request: QuoteRequest):
 
         uuid_quote = uuid.uuid4()
 
-        save_quote_to_db(usd_text, "HP", current_url, uuid_quote)
+        save_quote_to_db(usd_text, "HP", current_url, uuid_quote, quote_request.customer, quote_request.phone)
 
         return {"data": { "price": usd_text, "id": uuid_quote, "url": current_url, "company": "HP" }}
 
