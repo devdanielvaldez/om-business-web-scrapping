@@ -44,20 +44,25 @@ class QuoteRequest(BaseModel):
     container_quantity: int
     customer: str
     phone: str
+    service_type: str
+
+class BLRequest(BaseModel):
+    bl: str
 
 
 LOGIN_URL = "https://identity.hapag-lloyd.com/hlagwebprod.onmicrosoft.com/b2c_1a_signup_signin/oauth2/v2.0/authorize?client_id=64d7a44b-1c5b-4b52-9ff9-254f7acd8fc0&scope=openid%20profile%20offline_access&redirect_uri=https%3A%2F%2Fwww.hapag-lloyd.com%2Fsolutions%2Fauth"
 NEW_QUOTE_URL = "https://www.hapag-lloyd.com/solutions/new-quote/#/simple?language=en"
-USERNAME = "ingdanielvadez@gmail.com"
-PASSWORD = "D@niel1901"
+USERNAME = "omontero@ombusinesslogistic.com"
+PASSWORD = "Candhy20241986--"
 
-MONGO_URL = "mongodb+srv://admin:Admin123@database-doc-manager.asgo7.mongodb.net/?retryWrites=true&w=majority&appName=database-doc-manager"  # Asegúrate de cambiar a la URL de tu MongoDB
+MONGO_URL = "mongodb+srv://admin:Admin123@ombusinesslogistic.gxrlr.mongodb.net"  # Asegúrate de cambiar a la URL de tu MongoDB
 DATABASE_NAME = "Customers"
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
 db = client[DATABASE_NAME]
 quotes_collection = db["quotes"]
+bl_release_collection = db["bl_releases"]
 
-def save_quote_to_db(price: str, company: str, url: str, uuid: str, customer: str, phone: str):
+def save_quote_to_db(price: str, company: str, url: str, uuid: str, customer: str, phone: str, service_type: str):
     try:
         uuid_str = str(uuid)
         # Crear una nueva cotización
@@ -68,13 +73,43 @@ def save_quote_to_db(price: str, company: str, url: str, uuid: str, customer: st
             "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
             "uuid": uuid_str,
             "customer": customer,
-            "phone": phone
+            "phone": phone,
+            "service_type": service_type
         }
         # Insertar la cotización en MongoDB
         result = quotes_collection.insert_one(new_quote)
         print(f"Quote saved to DB with ID: {result}")
     except Exception as e:
         print(f"Error saving quote to DB: {e}")
+
+def save_bl_release(bl: str):
+    try:
+        new_bl_release = {
+            "bl_number": bl,
+            "status": "Pending"
+        }
+        # Insertar la cotización en MongoDB
+        result = bl_release_collection.insert_one(new_bl_release)
+        print(f"BL Release saved to DB with ID: {result}")
+        return {"success": True}
+    except Exception as e:
+        print(f"Error saving quote to DB: {e}")
+        return {"error": str(e)}
+    
+def register_bl_release(bl: str):
+    try:
+        result = save_bl_release(bl)
+        return result
+    except Exception as e:
+        print("Error in save BL Release")
+        return {"error": str(e)}
+
+@app.post("/release-bl/")
+async def release_bl_endpoint(blRequest: BLRequest):
+    result = register_bl_release(blRequest.bl)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
 
 def upload_image_to_firebase(image_path: str) -> str:
     """
@@ -209,15 +244,22 @@ def submit_quote(quote_request: QuoteRequest):
 
         # Extraer el texto del h2
         usd_text = usd_h2.text
+        price = usd_text.replace("USD", "").replace(" ", "").strip()
+
+        # Convertir a número
+        price_number = float(price.replace(",", ""))
+
+        # Calcular el 20% y sumarlo
+        result = round(price_number * 1.20)
         print(f"Texto encontrado en h2: {usd_text}")
         current_url = driver.current_url
         print(f"URL: {current_url}")
 
         uuid_quote = uuid.uuid4()
 
-        save_quote_to_db(usd_text, "HP", current_url, uuid_quote, quote_request.customer, quote_request.phone)
+        save_quote_to_db(result, "HP", current_url, uuid_quote, quote_request.customer, quote_request.phone, quote_request.service_type)
 
-        return {"data": { "price": usd_text, "id": uuid_quote, "url": current_url, "company": "HP" }}
+        return {"data": { "price": result, "id": uuid_quote, "url": current_url, "company": "HP" }}
 
     except Exception as e:
         print(f"Error: {e}")
@@ -225,6 +267,7 @@ def submit_quote(quote_request: QuoteRequest):
 
     finally:
         driver.quit()
+
 
 # Endpoint POST para recibir los datos y enviar el presupuesto
 @app.post("/submit-quote/")
