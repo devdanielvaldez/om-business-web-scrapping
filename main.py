@@ -239,12 +239,12 @@ def submit_quote(quote_request: QuoteRequest):
 
         # Buscar un h2 con las clases "text-h2 h-ma-none" y que contenga "USD"
         usd_h2 = wait.until(EC.presence_of_element_located(
-            (By.XPATH, '//h2[contains(@class, "text-h2 h-ma-none") and contains(text(), "USD")]')
+            (By.XPATH, '//h2[contains(@class, "text-h2 h-ma-none") and (contains(text(), "USD") or contains(text(), "EUR"))]')
         ))
 
         # Extraer el texto del h2
         usd_text = usd_h2.text
-        price = usd_text.replace("USD", "").replace(" ", "").strip()
+        price = usd_text.replace("USD", "").replace("EUR", "").replace(" ", "").strip()
 
         # Convertir a número
         price_number = float(price.replace(",", ""))
@@ -338,7 +338,7 @@ def capture_tracking_page(tracking_number: str):
 
         # Esperar 120 segundos antes de tomar la captura de pantalla
         print("Esperando 20 segundos antes de tomar la captura...")
-        time.sleep(20)
+        time.sleep(80)
 
         # Tomar una captura de pantalla completa de la página
         screenshot = driver.get_screenshot_as_png()
